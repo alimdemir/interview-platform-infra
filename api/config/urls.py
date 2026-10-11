@@ -3,8 +3,6 @@ from django.db import connection
 from django.http import JsonResponse
 from django.urls import path
 
-from interviews.views import panel
-
 
 def health(request):
     try:
@@ -20,5 +18,4 @@ def health(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health),
-    path("panel/<int:interview_id>/", panel),
 ]

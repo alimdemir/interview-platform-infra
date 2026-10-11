@@ -73,11 +73,11 @@ run 'curl -sS http://localhost:8000/health/'
 bekle 4
 
 # ------------------------------------------------------------------ gün 3-4
-baslik "Gün 3-4 · Sentetik transkript, migration durumu ve PostgreSQL üzerinde testler"
-run 'docker compose exec -T api python manage.py seed_panel'
-run 'docker compose exec -T api python manage.py showmigrations interviews'
+baslik "Gün 3-4 · Örnek görev, migration durumu ve PostgreSQL üzerinde testler"
+run 'docker compose exec -T api python manage.py seed_demo'
+run 'docker compose exec -T api python manage.py showmigrations jobs'
 run 'docker compose exec -T api python manage.py test 2>&1 | tail -n 4'
-printf "Panel: http://localhost:8000/panel/1/\n\n"
+printf "Yönetim paneli: http://localhost:8000/admin/\n\n"
 bekle 5
 
 # ------------------------------------------------------------------ gün 5

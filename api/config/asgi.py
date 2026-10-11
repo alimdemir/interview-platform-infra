@@ -15,7 +15,7 @@ if settings.DEBUG:
 
     django_asgi_app = ASGIStaticFilesHandler(django_asgi_app)
 
-from interviews.routing import websocket_urlpatterns  # noqa: E402
+from jobs.routing import websocket_urlpatterns  # noqa: E402
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,

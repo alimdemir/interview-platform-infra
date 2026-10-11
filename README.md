@@ -6,13 +6,13 @@
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-probes-326CE5?logo=kubernetes&logoColor=white)
 [![CI](https://github.com/alimdemir/interview-platform-infra/actions/workflows/ci.yml/badge.svg)](https://github.com/alimdemir/interview-platform-infra/actions/workflows/ci.yml)
 
-Bu repo, [multimodal mülakat asistanının](https://github.com/alimdemir/multimodal-interview-assistant) backend servisini konteynerleştirme, PostgreSQL ile birlikte çalıştırma ve model servislerini Kubernetes'te sağlık kontrolleriyle yayınlama üzerine yaptığım çalışmaları içeriyor. AVD Teknoloji Danışmanlık'taki stajımın (2026) ilk haftasında hazırladım. Her adımda karşılaştığım hatalar ve çözümleri aşağıda.
+Bu repo, ekibin üç ürününün (iş fırsatı ajanı, şirket içi RAG ve [multimodal mülakat asistanı](https://github.com/alimdemir/multimodal-interview-assistant)) paylaşacağı backend altyapısı üzerine yaptığım çalışmaları içeriyor: servisi konteynerleştirme, PostgreSQL ile birlikte çalıştırma, uzun süren görevlerin ilerlemesini WebSocket ile iletme ve model servislerini Kubernetes'te sağlık kontrolleriyle yayınlama. AVD Teknoloji Danışmanlık'taki stajımın (2026) ilk haftasında hazırladım. Her adımda karşılaştığım hatalar ve çözümleri aşağıda.
 
 ## İçerik
 
 | Klasör | Açıklama |
 |---|---|
-| [`api/`](api) | Django 5.2 + Channels API. Mülakat, transkript parçası ve soru önerisi modelleri, `/health/` ucu, WebSocket transkript paneli, `Dockerfile`, `compose.yaml` (PostgreSQL 16 + healthcheck) |
+| [`api/`](api) | Django 5.2 + Channels API. Görev, görev olayı ve görev sonucu modelleri, `/health/` ucu, görev ilerlemesini akıtan WebSocket ucu, `Dockerfile`, `compose.yaml` (PostgreSQL 16 + healthcheck) |
 | [`k8s/`](k8s) | Modeli yüklerken geç hazır olan örnek servis; startup/readiness/liveness probe'lu `Deployment` ve `Service` |
 | [`scripts/`](scripts) | macOS'ta Docker Desktop ile adım adım deneme betikleri (`staj_docker_mac.sh`: Compose ve temel probe senaryosu, `staj_k8s_mac.sh`: imaj izni, etiket ve probe karşılaştırması) |
 | [`docs/ekran_goruntuleri/`](docs/ekran_goruntuleri) | Çalışma sırasında aldığım ekran görüntüleri |
@@ -21,14 +21,14 @@ Bu repo, [multimodal mülakat asistanının](https://github.com/alimdemir/multim
 
 ```mermaid
 flowchart LR
-    P["Tarayıcı paneli"] -- "HTTP / WebSocket" --> A["api<br/>Daphne (ASGI)<br/>Django + Channels"]
+    P["Arayüz"] -- "HTTP / WebSocket" --> A["api<br/>Daphne (ASGI)<br/>Django + Channels"]
     A -- "psycopg" --> D[("db<br/>PostgreSQL 16")]
     D -. "pg_isready healthcheck" .-> A
 ```
 
 - **HTTP**: kayıt oluşturma, sorgulama ve `/health/` (veritabanına `SELECT 1` atar, ulaşamazsa `503` döner)
-- **WebSocket** (`/ws/interviews/<id>/`): panel açıldığında transkript parçaları sırayla JSON olarak akar
-- **Şema**: `Interview 1─N TranscriptSegment`, `QuestionSuggestion → TranscriptSegment (SET_NULL)`, `(interview, start_ms)` indeksi
+- **WebSocket** (`/ws/jobs/<id>/`): uzun süren bir görevin (veri toplama, belge işleme, model çıkarımı) ilerleme olayları sırayla JSON olarak akar; arayüz sayfayı yenilemeden güncellenir. Olmayan görev için bağlantı `4404` koduyla reddedilir.
+- **Şema**: `Job 1─N JobEvent`, `JobResult → JobEvent (SET_NULL)`, `(job, seq)` indeksi
 
 ## Hızlı başlangıç
 
@@ -41,7 +41,7 @@ curl http://localhost:8000/health/
 # {"service": "mulakat-api", "db": "ok"}
 ```
 
-Deneme verisi için `docker compose exec api python manage.py createsuperuser` ile `/admin/` paneline girip bir mülakat ve transkript parçaları ekleyin. Ardından `http://localhost:8000/panel/<id>/` sayfasını açın.
+Örnek veri için `docker compose exec api python manage.py seed_demo` bir görev ve beş ilerleme olayı oluşturur. Olayları `ws://localhost:8000/ws/jobs/1/` adresinden dinleyebilir (tarayıcıda Geliştirici Araçları → Network → WS → Messages), `createsuperuser` ile `/admin/` paneline girip görevi ve satır içi olaylarını görebilirsiniz.
 
 Docker olmadan hızlı test (SQLite):
 
@@ -88,7 +88,7 @@ Karşılaştırma için `k8s/deployment-liveness-only.yaml` yalnızca liveness p
 
 ## Testler
 
-`api/interviews/tests.py` altında 7 test var: sağlık ucu, transkript sıralaması, silme davranışları (`CASCADE` / `SET_NULL`), panel görünümü ve WebSocket akışı (`channels.testing.WebsocketCommunicator`).
+`api/jobs/tests.py` altında 7 test var: sağlık ucu, olay sıralaması, silme davranışları (`CASCADE` / `SET_NULL`) ve WebSocket ucu (`channels.testing.WebsocketCommunicator` ile sıralı akış, Türkçe karakterlerin kaçış dizisine dönüşmemesi, olmayan görevin reddedilmesi).
 
 GitHub Actions iş akışı ([`ci.yml`](.github/workflows/ci.yml)) her push'ta iki iş çalıştırıyor: Compose ile API + PostgreSQL'i kaldırıp migration, `/health/` kontrolü ve testler; ayrı bir kind kümesinde `soru-servisi` imajını yükleyip startupProbe'lu Deployment'ın rollout'unu bekleme.
 
@@ -100,11 +100,9 @@ Görüntüleri MacBook Air (Apple Silicon) üzerinde Docker Desktop ve yerleşik
 |---|---|
 | ![](docs/ekran_goruntuleri/01_baglama_adresi_hata.jpg)<br/>Uygulama `127.0.0.1` dinlediği için dışarıdan erişilemiyor | ![](docs/ekran_goruntuleri/02_baglama_adresi_cozum.jpg)<br/>`0.0.0.0` sonrası erişim |
 | ![](docs/ekran_goruntuleri/03_compose_localhost_hatasi.jpg)<br/>`DB_HOST=localhost` ile bağlantı hatası | ![](docs/ekran_goruntuleri/04_compose_servis_adi_cozum.jpg)<br/>Servis adı + healthcheck, migration ve `/health/` |
-| ![](docs/ekran_goruntuleri/05_websocket_transkript_paneli.jpg)<br/>WebSocket transkript paneli | ![](docs/ekran_goruntuleri/06_seed_migration_test.jpg)<br/>Deneme verisi, migration durumu ve PostgreSQL üzerinde testler |
 | ![](docs/ekran_goruntuleri/07_k8s_izin_hatasi.jpg)<br/>`0600` dosya izni imaja taşındı: `Permission denied` | ![](docs/ekran_goruntuleri/08_k8s_ayni_etiket_eski_imaj.jpg)<br/>Aynı etiket: yerel imaj düzeldi, düğümdeki imaj eski |
 | ![](docs/ekran_goruntuleri/09_k8s_liveness_yeniden_baslatma.jpg)<br/>Yalnız liveness probe (1.1): yeniden başlatma, önceki logda `model hazır` | ![](docs/ekran_goruntuleri/13_k8s_sigterm_1_1_ve_1_2.jpg)<br/>`SIGTERM` işleyicisi: `docker stop` 1.1 → 3,1 sn, 1.2 → 0,1 sn |
 | ![](docs/ekran_goruntuleri/14_k8s_liveness_1_2.jpg)<br/>Yalnız liveness probe (1.2): bir dakikada 3 yeniden başlatma, CrashLoopBackOff | ![](docs/ekran_goruntuleri/10_k8s_startup_probe_cozum.jpg)<br/>startupProbe + readinessProbe ile rollout; EndpointSlice'ta yalnız yeni pod hazır |
-| ![](docs/ekran_goruntuleri/11_migration_uygulanmamis.jpg)<br/>Uygulanmamış migration: `column ... does not exist`, `showmigrations`, `migrate` | ![](docs/ekran_goruntuleri/12_django_admin.jpg)<br/>Yönetim panelinde mülakat ve satır içi transkript parçaları |
 
 ## Lisans
 
