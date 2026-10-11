@@ -1,4 +1,4 @@
-"""M53 mülakat API ayarları.
+"""Mülakat API ayarları.
 
 Tüm gizli değerler ortam değişkenlerinden okunur (bkz. .env.example).
 """

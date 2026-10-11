@@ -1,12 +1,12 @@
-# M53 Mülakat Altyapısı · Docker, Compose ve Kubernetes
+# Mülakat Platformu Altyapısı · Docker, Compose ve Kubernetes
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-5.2-092E20?logo=django)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-probes-326CE5?logo=kubernetes&logoColor=white)
-[![CI](https://github.com/alimdemir/m53-interview-infra/actions/workflows/ci.yml/badge.svg)](https://github.com/alimdemir/m53-interview-infra/actions/workflows/ci.yml)
+[![CI](https://github.com/alimdemir/interview-platform-infra/actions/workflows/ci.yml/badge.svg)](https://github.com/alimdemir/interview-platform-infra/actions/workflows/ci.yml)
 
-Bu repo, [M53 multimodal mülakat sisteminin](https://github.com/alimdemir/m53-multimodal-interview) backend servisini konteynerleştirme, PostgreSQL ile birlikte çalıştırma ve model servislerini Kubernetes'te sağlık kontrolleriyle yayınlama üzerine yaptığım çalışmaları içeriyor. AVD Teknoloji Danışmanlık'taki stajımın (2026) ilk haftasında hazırladım. Her adımda karşılaştığım hatalar ve çözümleri aşağıda.
+Bu repo, [multimodal mülakat asistanının](https://github.com/alimdemir/multimodal-interview-assistant) backend servisini konteynerleştirme, PostgreSQL ile birlikte çalıştırma ve model servislerini Kubernetes'te sağlık kontrolleriyle yayınlama üzerine yaptığım çalışmaları içeriyor. AVD Teknoloji Danışmanlık'taki stajımın (2026) ilk haftasında hazırladım. Her adımda karşılaştığım hatalar ve çözümleri aşağıda.
 
 ## İçerik
 
